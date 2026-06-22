@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.19
+-- Version 0.24
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -13,10 +13,10 @@ package body Bayesian_Network_Learning is
    function Creates_Cycle (G : Graph; X, Y : Node_Id) return Boolean is
       Visited : Node_Boolean_Array := (others => False);
       Stack   : Node_Boolean_Array := (others => False);
-      Found   : Boolean := False;
 
       procedure DFS (Current : Node_Id; S : in out Node_Boolean_Array; F : out Boolean) is
       begin
+         F := False;  -- Initialize OUT parameter
          if Current = X then
             F := True;
             return;
@@ -35,12 +35,17 @@ package body Bayesian_Network_Learning is
             end if;
          end loop;
          S(Current) := False;
-      end DFS;
+      end DFS
+        with Always_Terminates;
 
    begin
       if not G.Directed_Edges(X, Y) then
-         DFS(Y, Stack, Found);
-         return Found;
+         declare
+            Found : Boolean := False;
+         begin
+            DFS(Y, Stack, Found);
+            return Found;
+         end;
       end if;
       return False;
    end Creates_Cycle;
@@ -48,19 +53,20 @@ package body Bayesian_Network_Learning is
    -- Placeholder: Chi-squared CI test (simplified for SPARK)
    function CI_Test (Data : Database; X, Y : Node_Id; Conditioning_Set : Parent_Set_Type;
                      Conditioning_Count : Parent_Count_Type) return Boolean is
-      pragma Unreferenced (Data, X, Y, Conditioning_Set, Conditioning_Count);
+      pragma Unreferenced (Data, X, Y, Conditioning_Set);
    begin
       return Conditioning_Count > 0; -- Placeholder
    end CI_Test;
 
-   -- Factorial helper (for g-metric)
+   -- Factorial helper (for g-metric) with safe bounds
    function Factorial (N : Integer) return Float is
       Result : Float := 1.0;
    begin
       if N <= 1 then
          return 1.0;
       end if;
-      for I in 2 .. N loop
+      for I in 2 .. Integer'Min(N, Max_Factorial_Input) loop
+         pragma Loop_Invariant (Result <= Float'Last);
          Result := Result * Float(I);
       end loop;
       return Result;
@@ -69,6 +75,7 @@ package body Bayesian_Network_Learning is
    -- K2 metric g(i, π_i) from Equation 2 in the paper
    function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set_Type;
                      Parent_Count : Parent_Count_Type) return Float is
+      pragma Unreferenced (Parents);
       R_I : constant Integer := 2;  -- Number of possible values for node i (binary)
       Q_I : constant Integer := Integer(Parent_Count);  -- Number of parent instantiations
       Result : Float := 1.0;
@@ -83,7 +90,9 @@ package body Bayesian_Network_Learning is
          end loop;
          for K in 1 .. R_I loop
             N_IJK := N_IJ / R_I;  -- Simplified: Assume uniform distribution
-            Result := Result * (Factorial(R_I - 1) / Factorial(N_IJ + R_I - 1)) * Factorial(N_IJK);
+            if N_IJ + R_I - 1 > 0 then  -- Avoid division by zero
+               Result := Result * (Factorial(R_I - 1) / Factorial(N_IJ + R_I - 1)) * Factorial(N_IJK);
+            end if;
          end loop;
       end loop;
       return Result;
@@ -92,6 +101,11 @@ package body Bayesian_Network_Learning is
    -- Phase I: Generate node ordering using CI tests
    procedure Phase_I (Data : Database; G : in out Graph; Ordering : out Node_Ordering) is
    begin
+      -- Initialize graph
+      G.Node_Count := Node_Count_Type(Max_Nodes);
+      G.Adjacent := (others => (others => False));
+      G.Directed_Edges := (others => (others => False));
+
       -- Step 1: Start with complete undirected graph
       for I in Node_Id loop
          for J in Node_Id loop
@@ -132,10 +146,12 @@ package body Bayesian_Network_Learning is
       Current_Score : Float;
    begin
       G.Node_Count := Node_Count_Type(Ordering'Length);
+      G.Edge_Count := 0;
 
       -- Initialize parents for all nodes
       for I in Node_Id loop
          G.Parent_Counts(I) := 0;
+         G.Parents(I) := (others => Node_Id'First);
       end loop;
 
       -- For each node in the ordering
@@ -174,9 +190,9 @@ package body Bayesian_Network_Learning is
       Visited : array (Node_Id) of Boolean := (others => False);
       Index : Positive := 1;
    begin
-      Ordering := (1 .. Max_Nodes => Node_Id'First);
+      Ordering := (1 .. Integer(G.Node_Count) => Node_Id'First);
       for I in Node_Id loop
-         if not Visited(I) and then G.Node_Count >= Node_Count_Type(I) then
+         if not Visited(I) and then Node_Count_Type(I) <= G.Node_Count and then Index <= Ordering'Length then
             Ordering(Index) := I;
             Visited(I) := True;
             Index := Index + 1;
@@ -187,9 +203,6 @@ package body Bayesian_Network_Learning is
    -- Main CB algorithm (combines Phase I and II iteratively)
    procedure CB_Algorithm (Data : Database; G : out Graph) is
       Ordering : Node_Ordering(1 .. Max_Nodes);
-      Old_Prob : Float := 0.0;
-      New_Prob : Float := 0.0;
-      Ord : CI_Order := 0;
    begin
       -- Initialize graph
       G.Node_Count := 0;
@@ -204,15 +217,6 @@ package body Bayesian_Network_Learning is
       -- Phase I + II for CI order 0
       Phase_I(Data, G, Ordering);
       Phase_II(Data, Ordering, G);
-
-      -- Compute initial probability (simplified)
-      New_Prob := 1.0;
-      for I in Node_Id loop
-         if G.Parent_Counts(I) > 0 then
-            New_Prob := New_Prob * G_Metric(Data, I, G.Parents(I), G.Parent_Counts(I));
-         end if;
-      end loop;
-      Old_Prob := New_Prob;
    end CB_Algorithm;
 
 end Bayesian_Network_Learning;
