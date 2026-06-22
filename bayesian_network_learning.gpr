@@ -1,0 +1,22 @@
+-- bayesian_network_learning.gpr
+-- Version 0.01
+-- GNAT Project file for Bayesian Network Structure Learning
+
+project Bayesian_Network_Learning is
+
+   for Source_Dirs use (".");
+   for Source_Files use ("bayesian_network_learning.ads", "bayesian_network_learning.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-g", "-O2", "-gnatwa");
+   end Compiler;
+
+   package Binder is
+      for Default_Switches ("Ada") use ("-E");
+   end Binder;
+
+   package Builder is
+      for Executable ("main") use ("bayesian_network_learning.adb");
+   end Builder;
+
+end Bayesian_Network_Learning;
