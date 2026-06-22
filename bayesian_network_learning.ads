@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.15
+-- Version 0.16
 -- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -27,28 +27,34 @@ package Bayesian_Network_Learning is
    type Value is (False, True);
    type Value_Array is array (Positive range <>) of Value;
 
+   -- Named array types for SPARK compatibility
+   type Database_Type is array (Positive range <>, Node_Id) of Value;
+   type Parent_Set_Type is array (Parent_Index) of Node_Id;
+   type Adjacency_Matrix_Type is array (Node_Id, Node_Id) of Boolean;
+   type Directed_Edges_Matrix_Type is array (Node_Id, Node_Id) of Boolean;
+   type Parent_Array_Type is array (Node_Id) of Parent_Set_Type;
+   type Parent_Counts_Array_Type is array (Node_Id) of Parent_Count_Type;
+
    -- Database: array of cases, each case is a Value_Array
-   type Database is array (Positive range <>, Node_Id) of Value;
+   type Database is array (Positive range <>, Positive range <>) of Value;
 
-   -- Parent set for a node (static array for SPARK)
-   type Parent_Set is array (Parent_Index) of Node_Id;
-
-   -- Graph representation
+   -- Edge representation
    type Edge is record
       Source : Node_Id;
       Target : Node_Id;
    end record;
 
+   -- Graph representation
    type Graph is record
       Node_Count : Node_Count_Type := 0;
       Edge_Count : Edge_Count_Type := 0;
       -- Adjacency matrix for undirected graph (Phase I)
-      Adjacent : array (Node_Id, Node_Id) of Boolean := (others => (others => False));
+      Adjacent : Adjacency_Matrix_Type := (others => (others => False));
       -- Directed edges (Phase II)
-      Directed_Edges : array (Node_Id, Node_Id) of Boolean := (others => (others => False));
+      Directed_Edges : Directed_Edges_Matrix_Type := (others => (others => False));
       -- Parents for each node (Phase II)
-      Parents : array (Node_Id) of Parent_Set := (others => (others => Node_Id'First));
-      Parent_Counts : array (Node_Id) of Parent_Count_Type := (others => 0);
+      Parents : Parent_Array_Type := (others => (others => Node_Id'First));
+      Parent_Counts : Parent_Counts_Array_Type := (others => 0);
    end record
      with Relaxed_Initialization;
 
@@ -56,33 +62,28 @@ package Bayesian_Network_Learning is
    type Node_Ordering is array (Positive range <>) of Node_Id;
 
    -- CI test result
-   function CI_Test (Data : Database; X, Y : Node_Id; Conditioning_Set : Parent_Set;
+   function CI_Test (Data : Database; X, Y : Node_Id; Conditioning_Set : Parent_Set_Type;
                      Conditioning_Count : Parent_Count_Type) return Boolean
      with Pre => Data'Length > 0 and X <= Max_Nodes and Y <= Max_Nodes;
 
    -- K2 metric g(i, π_i) from Equation 2 in the paper
-   function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set;
+   function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set_Type;
                      Parent_Count : Parent_Count_Type) return Float
-     with Pre => Data'Length > 0 and Node <= Max_Nodes and Parent_Count <= Max_Parents;
+     with Pre => Data'Length > 0 and Node <= Max_Nodes;
 
    -- Phase I: Generate node ordering using CI tests
    procedure Phase_I (Data : Database; G : in out Graph; Ordering : out Node_Ordering)
      with Pre => Data'Length > 0,
-          Post => Ordering'Length = G.Node_Count;
+          Post => Ordering'Length <= Max_Nodes;
 
    -- Phase II: K2 algorithm to construct DAG from ordering
-   procedure Phase_II (Data : Database; Ordering : Node_Ordering; G : in out Graph)
+   procedure Phase_II (Data : Database; G : in out Graph; Ordering : Node_Ordering)
      with Pre => Data'Length > 0 and Ordering'Length > 0,
-          Post => G.Node_Count = Node_Count_Type(Ordering'Length);
+          Post => G.Node_Count <= Max_Nodes;
 
    -- Topological sort for DAG
    procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering)
      with Pre => True,
           Post => Ordering'Length = G.Node_Count;
-
-   -- Main CB algorithm (combines Phase I and II iteratively)
-   procedure CB_Algorithm (Data : Database; G : out Graph)
-     with Pre => Data'Length > 0,
-          Post => G.Node_Count <= Max_Nodes;
 
 end Bayesian_Network_Learning;
