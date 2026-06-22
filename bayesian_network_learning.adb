@@ -1,39 +1,43 @@
 -- bayesian_network_learning.adb
--- Version 0.17
+-- Version 0.18
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
 
 package body Bayesian_Network_Learning is
 
-   -- Helper: Check if adding edge X->Y creates a cycle
+   -- Helper: Check if adding edge X->Y creates a cycle (SPARK-compatible)
    function Creates_Cycle (G : Graph; X, Y : Node_Id) return Boolean is
       Visited : array (Node_Id) of Boolean := (others => False);
       Stack   : array (Node_Id) of Boolean := (others => False);
+      Found   : Boolean := False;
 
-      function DFS (Current : Node_Id) return Boolean is
+      procedure DFS (Current : Node_Id; S : in out array (Node_Id) of Boolean; F : out Boolean) is
       begin
          if Current = X then
-            return True;
+            F := True;
+            return;
          end if;
          Visited(Current) := True;
-         Stack(Current) := True;
+         S(Current) := True;
          for Neighbor in Node_Id loop
             if G.Directed_Edges(Current, Neighbor) and then not Visited(Neighbor) then
-               if DFS(Neighbor) then
-                  return True;
+               DFS(Neighbor, S, F);
+               if F then
+                  return;
                end if;
-            elsif Stack(Neighbor) then
-               return True;
+            elsif S(Neighbor) then
+               F := True;
+               return;
             end if;
          end loop;
-         Stack(Current) := False;
-         return False;
+         S(Current) := False;
       end DFS;
 
    begin
       if not G.Directed_Edges(X, Y) then
-         return DFS(Y);
+         DFS(Y, Stack, Found);
+         return Found;
       end if;
       return False;
    end Creates_Cycle;
