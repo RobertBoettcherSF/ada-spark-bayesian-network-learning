@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.16
+-- Version 0.17
 -- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -31,6 +31,8 @@ package Bayesian_Network_Learning is
    type Adjacency_Matrix_Type is array (Node_Id, Node_Id) of Boolean;
    type Directed_Edges_Matrix_Type is array (Node_Id, Node_Id) of Boolean;
    type Parent_Set_Type is array (Parent_Index) of Node_Id;
+   type Parents_Array_Type is array (Node_Id) of Parent_Set_Type;
+   type Parent_Counts_Array_Type is array (Node_Id) of Parent_Count_Type;
 
    -- Database: array of cases, each case is a Value_Array
    type Database is array (Positive range <>, Positive range <>) of Value;
@@ -50,8 +52,8 @@ package Bayesian_Network_Learning is
       -- Directed edges (Phase II)
       Directed_Edges : Directed_Edges_Matrix_Type := (others => (others => False));
       -- Parents for each node (Phase II)
-      Parents : array (Node_Id) of Parent_Set_Type := (others => (others => Node_Id'First));
-      Parent_Counts : array (Node_Id) of Parent_Count_Type := (others => 0);
+      Parents : Parents_Array_Type := (others => (others => Node_Id'First));
+      Parent_Counts : Parent_Counts_Array_Type := (others => 0);
    end record
      with Relaxed_Initialization;
 
