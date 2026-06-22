@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.11
+-- Version 0.12
 -- Specification of Bayesian Network Structure Learning (CB Algorithm from Paper)
 
 pragma SPARK_Mode;
