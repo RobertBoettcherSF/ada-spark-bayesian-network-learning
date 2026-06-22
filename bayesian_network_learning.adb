@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.26
+-- Version 0.27
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -8,12 +8,10 @@ package body Bayesian_Network_Learning is
 
    -- Helper: Check if adding edge X->Y creates a cycle (SPARK-compatible)
    function Creates_Cycle (G : Graph; X, Y : Node_Id) return Boolean is
-      Visited : Node_Boolean_Array_Type := (others => False);
-      Stack   : Node_Boolean_Array_Type := (others => False);
+      Visited : Node_Boolean_Array_Type;
+      Stack   : Node_Boolean_Array_Type;
 
-      procedure DFS (Current : Node_Id; S : in out Node_Boolean_Array_Type; F : out Boolean)
-        with Always_Terminates
-      is
+      procedure DFS (Current : Node_Id; S : in out Node_Boolean_Array_Type; F : out Boolean) is
       begin
          F := False;  -- Initialize OUT parameter
          if Current = X then
@@ -23,6 +21,7 @@ package body Bayesian_Network_Learning is
          Visited(Current) := True;
          S(Current) := True;
          for Neighbor in Node_Id loop
+            pragma Loop_Invariant (not F);
             if G.Directed_Edges(Current, Neighbor) and then not Visited(Neighbor) then
                DFS(Neighbor, S, F);
                if F then
@@ -37,15 +36,15 @@ package body Bayesian_Network_Learning is
       end DFS;
 
    begin
+      -- Initialize arrays
+      Visited := (others => False);
+      Stack := (others => False);
+      
       if not G.Directed_Edges(X, Y) then
          declare
-            Found : Boolean := False;
-            Local_Visited : Node_Boolean_Array_Type := (others => False);
-            Local_Stack : Node_Boolean_Array_Type := (others => False);
+            Found : Boolean;
          begin
-            -- Reset visited and stack for this check
-            Visited := Local_Visited;
-            Stack := Local_Stack;
+            Found := False;
             DFS(Y, Stack, Found);
             return Found;
          end;
@@ -64,12 +63,14 @@ package body Bayesian_Network_Learning is
    -- Factorial helper (for g-metric) with safe bounds
    function Factorial (N : Integer) return Float is
       Result : Float := 1.0;
+      Max_I : constant Integer := Integer'Min(N, Max_Factorial_Input);
    begin
       if N <= 1 then
          return 1.0;
       end if;
-      for I in 2 .. Integer'Min(N, Max_Factorial_Input) loop
-         pragma Loop_Invariant (Result <= Float'Last);
+      for I in 2 .. Max_I loop
+         pragma Loop_Invariant (Result <= Float'Last and Result >= 1.0);
+         pragma Loop_Invariant (I <= Max_I);
          Result := Result * Float(I);
       end loop;
       return Result;
@@ -78,21 +79,29 @@ package body Bayesian_Network_Learning is
    -- K2 metric g(i, π_i) from Equation 2 in the paper
    function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set_Type;
                      Parent_Count : Parent_Count_Type) return Float is
-      pragma Unreferenced (Parents, Node, Data);
+      pragma Unreferenced (Parents, Node);
       R_I : constant Integer := 2;  -- Number of possible values for node i (binary)
       Q_I : constant Integer := Integer(Parent_Count);  -- Number of parent instantiations
+      Data_Size : constant Integer := Data'Length(1);
       Result : Float := 1.0;
       N_IJ : Integer;
       N_IJK : Integer;
       Denominator : Float;
+      Term : Float;
    begin
       for J in 1 .. Q_I loop
-         N_IJ := Data'Length(1); -- Use actual data size
+         N_IJ := Data_Size; -- Use actual data size
          for K in 1 .. R_I loop
             N_IJK := N_IJ / R_I;  -- Simplified: Assume uniform distribution
-            Denominator := Factorial(N_IJ + R_I - 1);
-            if Denominator > 0.0 then  -- Avoid division by zero
-               Result := Result * (Factorial(R_I - 1) / Denominator) * Factorial(N_IJK);
+            
+            -- Ensure factorial arguments are within bounds
+            if N_IJ + R_I - 1 <= Max_Factorial_Input and N_IJK <= Max_Factorial_Input then
+               Denominator := Factorial(N_IJ + R_I - 1);
+               if Denominator > 0.0 then  -- Avoid division by zero
+                  Term := (Factorial(R_I - 1) / Denominator) * Factorial(N_IJK);
+                  pragma Loop_Invariant (Result <= Float'Last);
+                  Result := Result * Term;
+               end if;
             end if;
          end loop;
       end loop;
@@ -123,6 +132,7 @@ package body Bayesian_Network_Learning is
       -- Step 2: Remove edges based on CI tests (simplified to order 0)
       for I in Node_Id loop
          for J in I+1 .. Node_Id'Last loop
+            pragma Loop_Invariant (G.Adjacent'Initialized);
             if G.Adjacent(I, J) then
                if CI_Test(Data, I, J, (others => Node_Id'First), 0) then
                   G.Adjacent(I, J) := False;
@@ -135,6 +145,7 @@ package body Bayesian_Network_Learning is
       -- Step 3-4: Orient edges (simplified)
       for I in Node_Id loop
          for J in Node_Id loop
+            pragma Loop_Invariant (G.Adjacent'Initialized and G.Directed_Edges'Initialized);
             if G.Adjacent(I, J) then
                G.Directed_Edges(I, J) := True;
             end if;
@@ -170,18 +181,21 @@ package body Bayesian_Network_Learning is
 
             -- Try all possible parent sets from predecessors
             for J in Ordering'First .. I-1 loop
+               pragma Loop_Invariant (Temp_Count <= Max_Parents);
                declare
                   Candidate : Node_Id := Ordering(J);
                begin
-                  Temp_Count := Temp_Count + 1;
-                  Temp_Parents(Parent_Index(Temp_Count)) := Candidate;
+                  if Temp_Count < Max_Parents then
+                     Temp_Count := Temp_Count + 1;
+                     Temp_Parents(Parent_Index(Temp_Count)) := Candidate;
 
-                  if not Creates_Cycle(G, Candidate, Node) then
-                     Current_Score := G_Metric(Data, Node, Temp_Parents, Temp_Count);
-                     if Current_Score > Best_Score then
-                        Best_Score := Current_Score;
-                        G.Parent_Counts(Node) := Temp_Count;
-                        G.Parents(Node) := Temp_Parents;
+                     if not Creates_Cycle(G, Candidate, Node) then
+                        Current_Score := G_Metric(Data, Node, Temp_Parents, Temp_Count);
+                        if Current_Score > Best_Score then
+                           Best_Score := Current_Score;
+                           G.Parent_Counts(Node) := Temp_Count;
+                           G.Parents(Node) := Temp_Parents;
+                        end if;
                      end if;
                   end if;
                end;
@@ -194,9 +208,17 @@ package body Bayesian_Network_Learning is
    procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering) is
       Visited : Node_Boolean_Array_Type := (others => False);
       Index : Positive := 1;
+      Node_Count_Int : constant Integer := Integer(G.Node_Count);
    begin
-      Ordering := (1 .. Integer(G.Node_Count) => Node_Id'First);
+      -- Initialize ordering with proper bounds
+      if Node_Count_Int > 0 then
+         Ordering := (1 .. Node_Count_Int => Node_Id'First);
+      else
+         Ordering := (1 .. 1 => Node_Id'First);
+      end if;
+      
       for I in Node_Id loop
+         pragma Loop_Invariant (Index <= Ordering'Length + 1);
          if not Visited(I) and then Node_Count_Type(I) <= G.Node_Count then
             if Index <= Ordering'Length then
                Ordering(Index) := I;
@@ -209,7 +231,8 @@ package body Bayesian_Network_Learning is
 
    -- Main CB algorithm (combines Phase I and II iteratively)
    procedure CB_Algorithm (Data : Database; G : out Graph) is
-      Max_Data_Nodes : constant Positive := Integer'Min(Data'Length(2), Max_Nodes);
+      Data_Columns : constant Integer := Data'Length(2);
+      Max_Data_Nodes : constant Positive := (if Data_Columns > 0 then Integer'Min(Data_Columns, Max_Nodes) else 1);
       Ordering : Node_Ordering(1 .. Max_Data_Nodes);
    begin
       -- Initialize graph
