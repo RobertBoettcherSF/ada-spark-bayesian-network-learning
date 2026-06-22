@@ -1,18 +1,21 @@
 -- bayesian_network_learning.adb
--- Version 0.18
+-- Version 0.19
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
 
 package body Bayesian_Network_Learning is
 
+   -- Named array type for SPARK compatibility
+   type Node_Boolean_Array is array (Node_Id) of Boolean;
+
    -- Helper: Check if adding edge X->Y creates a cycle (SPARK-compatible)
    function Creates_Cycle (G : Graph; X, Y : Node_Id) return Boolean is
-      Visited : array (Node_Id) of Boolean := (others => False);
-      Stack   : array (Node_Id) of Boolean := (others => False);
+      Visited : Node_Boolean_Array := (others => False);
+      Stack   : Node_Boolean_Array := (others => False);
       Found   : Boolean := False;
 
-      procedure DFS (Current : Node_Id; S : in out array (Node_Id) of Boolean; F : out Boolean) is
+      procedure DFS (Current : Node_Id; S : in out Node_Boolean_Array; F : out Boolean) is
       begin
          if Current = X then
             F := True;
