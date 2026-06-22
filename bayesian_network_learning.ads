@@ -1,75 +1,88 @@
 -- bayesian_network_learning.ads
--- Version 0.12
--- Specification of Bayesian Network Structure Learning (CB Algorithm from Paper)
+-- Version 0.15
+-- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
 
 package Bayesian_Network_Learning is
 
-   -- Basic types for nodes and edges
-   type Node_Id is range 1 .. 1000;
-   type Edge_Id is range 1 .. 10000;
+   -- Constants for maximum sizes
+   Max_Nodes : constant := 1000;
+   Max_Edges : constant := 10000;
+   Max_Parents : constant := 100;  -- Max parents per node
+   Max_CI_Order : constant := 5;   -- Max order for CI tests
+
+   -- Basic types
+   type Node_Id is range 1 .. Max_Nodes;
+   type Edge_Id is range 1 .. Max_Edges;
+   type Parent_Index is range 1 .. Max_Parents;
+   type CI_Order is range 0 .. Max_CI_Order;
 
    -- Types for counts (start at 0)
-   type Node_Count_Type is range 0 .. Node_Id'Last;
-   type Edge_Count_Type is range 0 .. Edge_Id'Last;
+   type Node_Count_Type is range 0 .. Max_Nodes;
+   type Edge_Count_Type is range 0 .. Max_Edges;
+   type Parent_Count_Type is range 0 .. Max_Parents;
 
-   -- Data type for discrete variable values (simplified: 0 = False, 1 = True)
+   -- Discrete values for variables (simplified: binary for now)
    type Value is (False, True);
    type Value_Array is array (Positive range <>) of Value;
 
-   -- Graph components
-   type Node is record
-      Id : Node_Id;
-   end record;
+   -- Database: array of cases, each case is a Value_Array
+   type Database is array (Positive range <>, Node_Id) of Value;
 
+   -- Parent set for a node (static array for SPARK)
+   type Parent_Set is array (Parent_Index) of Node_Id;
+
+   -- Graph representation
    type Edge is record
       Source : Node_Id;
       Target : Node_Id;
-      Weight : Float;
    end record;
 
-   -- Parent set for a node (static array for SPARK compatibility)
-   type Parent_Set is array (Positive range <>) of Node_Id;
-
-   -- 2D array type for parents (Node_Id x Parent index)
-   type Parent_Array is array (Node_Id, Positive range 1 .. 1000) of Node_Id;
-
-   -- Graph type
    type Graph is record
       Node_Count : Node_Count_Type := 0;
       Edge_Count : Edge_Count_Type := 0;
-      Parents : Parent_Array;
+      -- Adjacency matrix for undirected graph (Phase I)
+      Adjacent : array (Node_Id, Node_Id) of Boolean := (others => (others => False));
+      -- Directed edges (Phase II)
+      Directed_Edges : array (Node_Id, Node_Id) of Boolean := (others => (others => False));
+      -- Parents for each node (Phase II)
+      Parents : array (Node_Id) of Parent_Set := (others => (others => Node_Id'First));
+      Parent_Counts : array (Node_Id) of Parent_Count_Type := (others => 0);
    end record
      with Relaxed_Initialization;
 
-   -- Database type: array of cases, each case is a Value_Array
-   type Database is array (Positive range <>, Positive range <>) of Value;
-
-   -- Node ordering type (static array for SPARK compatibility)
+   -- Node ordering type
    type Node_Ordering is array (Positive range <>) of Node_Id;
 
    -- CI test result
-   function CI_Test (Data : Database; X, Y : Node_Id; Conditioning_Set : Parent_Set) return Boolean
-     with Pre => Data'Length > 0 and X <= Node_Id'Last and Y <= Node_Id'Last;
+   function CI_Test (Data : Database; X, Y : Node_Id; Conditioning_Set : Parent_Set;
+                     Conditioning_Count : Parent_Count_Type) return Boolean
+     with Pre => Data'Length > 0 and X <= Max_Nodes and Y <= Max_Nodes;
 
    -- K2 metric g(i, π_i) from Equation 2 in the paper
-   function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set) return Float
-     with Pre => Data'Length > 0 and Node <= Node_Id'Last;
+   function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set;
+                     Parent_Count : Parent_Count_Type) return Float
+     with Pre => Data'Length > 0 and Node <= Max_Nodes and Parent_Count <= Max_Parents;
 
-   -- Phase I: Generate node ordering using CI tests (simplified for SPARK)
-   procedure Generate_Ordering (Data : Database; Ordering : out Node_Ordering)
+   -- Phase I: Generate node ordering using CI tests
+   procedure Phase_I (Data : Database; G : in out Graph; Ordering : out Node_Ordering)
      with Pre => Data'Length > 0,
-          Post => Ordering'Length <= Node_Id'Last;
+          Post => Ordering'Length = G.Node_Count;
 
    -- Phase II: K2 algorithm to construct DAG from ordering
-   procedure K2_Algorithm (Data : Database; Ordering : Node_Ordering; Result : out Graph)
+   procedure Phase_II (Data : Database; Ordering : Node_Ordering; G : in out Graph)
      with Pre => Data'Length > 0 and Ordering'Length > 0,
-          Post => Result.Node_Count <= Node_Count_Type(Node_Id'Last);
+          Post => G.Node_Count = Node_Count_Type(Ordering'Length);
 
    -- Topological sort for DAG
    procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering)
      with Pre => True,
           Post => Ordering'Length = G.Node_Count;
+
+   -- Main CB algorithm (combines Phase I and II iteratively)
+   procedure CB_Algorithm (Data : Database; G : out Graph)
+     with Pre => Data'Length > 0,
+          Post => G.Node_Count <= Max_Nodes;
 
 end Bayesian_Network_Learning;
