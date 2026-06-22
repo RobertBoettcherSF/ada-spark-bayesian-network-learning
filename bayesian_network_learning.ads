@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.23
+-- Version 0.24
 -- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
