@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.27
+-- Version 0.28
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -92,6 +92,7 @@ package body Bayesian_Network_Learning is
       for J in 1 .. Q_I loop
          N_IJ := Data_Size; -- Use actual data size
          for K in 1 .. R_I loop
+            pragma Loop_Invariant (Result <= Float'Last);
             N_IJK := N_IJ / R_I;  -- Simplified: Assume uniform distribution
             
             -- Ensure factorial arguments are within bounds
@@ -99,7 +100,6 @@ package body Bayesian_Network_Learning is
                Denominator := Factorial(N_IJ + R_I - 1);
                if Denominator > 0.0 then  -- Avoid division by zero
                   Term := (Factorial(R_I - 1) / Denominator) * Factorial(N_IJK);
-                  pragma Loop_Invariant (Result <= Float'Last);
                   Result := Result * Term;
                end if;
             end if;
