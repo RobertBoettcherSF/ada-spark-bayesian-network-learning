@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.11
+-- Version 0.12
 -- Implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -40,7 +40,9 @@ package body Bayesian_Network_Learning is
 
       -- Initialize parents for all nodes
       for I in Node_Id loop
-         Result.Parents(I, 1 .. Node_Id'Last) := (1 .. Node_Id'Last => 1);
+         for J in 1 .. Node_Id'Last loop
+            Result.Parents(I, J) := 1;
+         end loop;
       end loop;
 
       -- For each node in the ordering
@@ -65,7 +67,9 @@ package body Bayesian_Network_Learning is
                   if Current_Score > Best_Score then
                      Best_Score := Current_Score;
                      -- Update parents for this node
-                     Result.Parents(Node, 1 .. Parent_Count) := Temp_Parents(1 .. Parent_Count);
+                     for J in 1 .. Parent_Count loop
+                        Result.Parents(Node, J) := Temp_Parents(J);
+                     end loop;
                   end if;
                end;
             end loop;
