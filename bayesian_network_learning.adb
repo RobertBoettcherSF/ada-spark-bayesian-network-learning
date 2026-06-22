@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.05
+-- Version 0.06
 -- Implementation of Bayesian Network Structure Learning algorithms
 
 pragma SPARK_Mode;
