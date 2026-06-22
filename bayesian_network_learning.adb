@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.32
+-- Version 0.33
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -125,6 +125,12 @@ package body Bayesian_Network_Learning is
       G.Node_Count := Actual_Node_Count;
       G.Adjacent := (others => (others => False));
       G.Directed_Edges := (others => (others => False));
+      
+      -- Initialize parents for Phase II
+      for I in Node_Id loop
+         G.Parent_Counts(I) := 0;
+         G.Parents(I) := (others => Node_Id'First);
+      end loop;
 
       -- Step 1: Start with complete undirected graph
       for I in Node_Id loop
@@ -169,12 +175,6 @@ package body Bayesian_Network_Learning is
    begin
       G.Node_Count := Node_Count_Type(Ordering'Length);
       G.Edge_Count := 0;
-
-      -- Initialize parents for all nodes
-      for I in Node_Id loop
-         G.Parent_Counts(I) := 0;
-         G.Parents(I) := (others => Node_Id'First);
-      end loop;
 
       -- For each node in the ordering
       for I in Ordering'Range loop

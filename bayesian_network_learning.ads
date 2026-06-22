@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.25
+-- Version 0.26
 -- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -84,7 +84,8 @@ package Bayesian_Network_Learning is
    -- Phase I: Generate node ordering using CI tests
    procedure Phase_I (Data : Database; G : in out Graph; Ordering : out Node_Ordering)
      with Pre => Data'Length > 0 and G.Adjacent'Initialized and G.Directed_Edges'Initialized,
-          Post => Ordering'Length = G.Node_Count and G.Node_Count <= Max_Nodes;
+          Post => Ordering'Length = G.Node_Count and G.Node_Count <= Max_Nodes
+               and G.Parents'Initialized and G.Parent_Counts'Initialized;
 
    -- Phase II: K2 algorithm to construct DAG from ordering
    procedure Phase_II (Data : Database; Ordering : Node_Ordering; G : in out Graph)
