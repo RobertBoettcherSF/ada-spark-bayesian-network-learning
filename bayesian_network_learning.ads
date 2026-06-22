@@ -1,12 +1,18 @@
 -- bayesian_network_learning.ads
--- Version 0.03
+-- Version 0.04
 -- Specification of Bayesian Network Structure Learning package
+
+pragma SPARK_Mode;
 
 package Bayesian_Network_Learning is
 
    -- Define basic types for nodes, edges, and graph
-   type Node_Id is range 1 .. 1000;  -- Assuming a maximum of 1000 nodes
-   type Edge_Id is range 1 .. 10000; -- Assuming a maximum of 10000 edges
+   type Node_Id is range 1 .. 1000;  -- Node IDs start at 1
+   type Edge_Id is range 1 .. 10000; -- Edge IDs start at 1
+
+   -- Separate types for counts (start at 0)
+   type Node_Count_Type is range 0 .. Node_Id'Last;
+   type Edge_Count_Type is range 0 .. Edge_Id'Last;
 
    type Node is record
       Id : Node_Id;
@@ -19,17 +25,17 @@ package Bayesian_Network_Learning is
    end record;
 
    -- Define named array types for SPARK compatibility
-   type Node_Array is array (Node_Id range <>) of Node_Id;
-   type Edge_Array is array (Edge_Id range <>) of Edge;
+   type Node_Array is array (Positive range <>) of Node_Id;
+   type Edge_Array is array (Positive range <>) of Edge;
 
    type Graph is record
       Nodes : Node_Array(1 .. Node_Id'Last);
       Edges : Edge_Array(1 .. Edge_Id'Last);
-      Node_Count : Node_Id := 0;
-      Edge_Count : Edge_Id := 0;
+      Node_Count : Node_Count_Type := 0;
+      Edge_Count : Edge_Count_Type := 0;
    end record;
 
-   -- Placeholder for data type (simplified for now)
+   -- Placeholder for data type
    type Data_Array is array (Positive range <>) of Float;
 
    -- Subprogram to perform Conditional Independence (CI) test
@@ -38,6 +44,7 @@ package Bayesian_Network_Learning is
 
    -- Subprogram to apply K2 algorithm to construct DAG from node ordering
    procedure K2_Algorithm (Data : Data_Array; Ordering : Node_Array; Result : out Graph)
-     with Pre => Data'Length > 0 and Ordering'Length > 0;
+     with Pre => Data'Length > 0 and Ordering'Length > 0,
+          Post => Result.Node_Count <= Node_Id'Last and Result.Edge_Count <= Edge_Id'Last;
 
 end Bayesian_Network_Learning;
