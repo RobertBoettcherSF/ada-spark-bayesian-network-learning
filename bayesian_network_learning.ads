@@ -1,19 +1,26 @@
 -- bayesian_network_learning.ads
--- Version 0.05
--- Specification of Bayesian Network Structure Learning package
+-- Version 0.07
+-- Specification of Bayesian Network Structure Learning (CB Algorithm from Paper)
 
 pragma SPARK_Mode;
 
+with Ada.Containers.Vectors;
+
 package Bayesian_Network_Learning is
 
-   -- Define basic types for nodes, edges, and graph
-   type Node_Id is range 1 .. 1000;  -- Node IDs start at 1
-   type Edge_Id is range 1 .. 10000; -- Edge IDs start at 1
+   -- Basic types for nodes and edges
+   type Node_Id is range 1 .. 1000;
+   type Edge_Id is range 1 .. 10000;
 
-   -- Separate types for counts (start at 0)
+   -- Types for counts (start at 0)
    type Node_Count_Type is range 0 .. Node_Id'Last;
    type Edge_Count_Type is range 0 .. Edge_Id'Last;
 
+   -- Data type for discrete variable values (simplified: 0 = False, 1 = True)
+   type Value is (False, True);
+   type Value_Array is array (Positive range <>) of Value;
+
+   -- Graph components
    type Node is record
       Id : Node_Id;
    end record;
@@ -24,29 +31,42 @@ package Bayesian_Network_Learning is
       Weight : Float;
    end record;
 
-   -- Define named array types for SPARK compatibility (using Positive for bounds)
-   type Node_Array is array (Positive range <>) of Node_Id;
-   type Edge_Array is array (Positive range <>) of Edge;
+   -- Parent set for a node (dynamic array)
+   package Parent_Sets is new Ada.Containers.Vectors(Positive, Node_Id);
+   subtype Parent_Set is Parent_Sets.Vector;
 
+   -- Graph type
    type Graph is record
-      Nodes : Node_Array(1 .. Integer(Node_Id'Last));
-      Edges : Edge_Array(1 .. Integer(Edge_Id'Last));
       Node_Count : Node_Count_Type := 0;
       Edge_Count : Edge_Count_Type := 0;
+      Parents : array (Node_Id) of Parent_Set;
    end record
      with Relaxed_Initialization;
 
-   -- Placeholder for data type
-   type Data_Array is array (Positive range <>) of Float;
+   -- Database type: array of cases, each case is a Value_Array
+   type Database is array (Positive range <>) of Value_Array;
 
-   -- Subprogram to perform Conditional Independence (CI) test
-   function CI_Test (Data : Data_Array; X, Y, Z : Node_Id) return Boolean
-     with Pre => Data'Length >= 3 and X <= Node_Id'Last and Y <= Node_Id'Last and Z <= Node_Id'Last;
+   -- CI test result
+   function CI_Test (Data : Database; X, Y : Node_Id; Conditioning_Set : Parent_Set) return Boolean
+     with Pre => Data'Length > 0 and X <= Node_Id'Last and Y <= Node_Id'Last;
 
-   -- Subprogram to apply K2 algorithm to construct DAG from node ordering
-   procedure K2_Algorithm (Data : Data_Array; Ordering : Node_Array; Result : out Graph)
-     with Pre => Data'Length > 0 and Ordering'Length > 0,
-          Post => Result.Node_Count <= Node_Count_Type(Node_Id'Last) and
-                 Result.Edge_Count <= Edge_Count_Type(Edge_Id'Last);
+   -- K2 metric g(i, π_i) from Equation 2 in the paper
+   function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set) return Float
+     with Pre => Data'Length > 0 and Node <= Node_Id'Last;
+
+   -- Phase I: Generate node ordering using CI tests (simplified for SPARK)
+   procedure Generate_Ordering (Data : Database; Ordering : out Parent_Sets.Vector)
+     with Pre => Data'Length > 0,
+          Post => Ordering.Length <= Node_Id'Last;
+
+   -- Phase II: K2 algorithm to construct DAG from ordering
+   procedure K2_Algorithm (Data : Database; Ordering : Parent_Sets.Vector; Result : out Graph)
+     with Pre => Data'Length > 0 and Ordering.Length > 0,
+          Post => Result.Node_Count <= Node_Count_Type(Node_Id'Last);
+
+   -- Topological sort for DAG
+   procedure Topological_Sort (G : Graph; Ordering : out Parent_Sets.Vector)
+     with Pre => True,
+          Post => Ordering.Length = G.Node_Count;
 
 end Bayesian_Network_Learning;
