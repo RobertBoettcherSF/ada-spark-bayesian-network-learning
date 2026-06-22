@@ -1,11 +1,8 @@
 -- bayesian_network_learning.adb
--- Version 0.07
+-- Version 0.08
 -- Implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
-
-with Ada.Containers.Vectors;
-with Ada.Numerics.Float_Random;
 
 package body Bayesian_Network_Learning is
 
@@ -24,48 +21,51 @@ package body Bayesian_Network_Learning is
    end G_Metric;
 
    -- Phase I: Generate ordering using CI tests (simplified)
-   procedure Generate_Ordering (Data : Database; Ordering : out Parent_Sets.Vector) is
+   procedure Generate_Ordering (Data : Database; Ordering : out Node_Ordering) is
    begin
-      Parent_Sets.Clear(Ordering);
+      Ordering := (1 .. Node_Id'Last => 1); -- Initialize with default values
       for I in 1 .. Node_Id'Last loop
-         Ordering.Append(Node_Id(I));
+         Ordering(I) := Node_Id(I);
       end loop;
    end Generate_Ordering;
 
    -- Phase II: K2 Algorithm (from paper)
-   procedure K2_Algorithm (Data : Database; Ordering : Parent_Sets.Vector; Result : out Graph) is
-      Current_Parents : Parent_Set;
+   procedure K2_Algorithm (Data : Database; Ordering : Node_Ordering; Result : out Graph) is
       Best_Score : Float := -Float'Last;
       Current_Score : Float;
    begin
-      Result.Node_Count := Node_Count_Type(Ordering.Length);
+      -- Initialize graph
+      Result.Node_Count := Node_Count_Type(Ordering'Length);
       Result.Edge_Count := 0;
 
       -- Initialize parents for all nodes
-      for I in 1 .. Node_Id'Last loop
-         Parent_Sets.Clear(Result.Parents(I));
+      for I in Node_Id loop
+         Result.Parents(I) := (1 .. Node_Id'Last => 1); -- Default initialization
       end loop;
 
       -- For each node in the ordering
-      for I in 1 .. Ordering.Length loop
+      for I in 1 .. Ordering'Length loop
          declare
-            Node : Node_Id := Ordering.Element(I);
+            Node : Node_Id := Ordering(I);
+            Temp_Parents : Parent_Set(1 .. Node_Id'Last) := (others => 1);
+            Parent_Count : Integer := 0;
          begin
-            Current_Parents := Parent_Sets.Empty_Vector;
-
             -- Try adding each predecessor as parent
             for J in 1 .. I - 1 loop
                declare
-                  Candidate_Parent : Node_Id := Ordering.Element(J);
+                  Candidate_Parent : Node_Id := Ordering(J);
                begin
-                  Parent_Sets.Append(Current_Parents, Candidate_Parent);
-                  Current_Score := G_Metric(Data, Node, Current_Parents);
+                  -- Add candidate parent to temporary set
+                  Parent_Count := Parent_Count + 1;
+                  Temp_Parents(Parent_Count) := Candidate_Parent;
+
+                  -- Compute score for this parent set
+                  Current_Score := G_Metric(Data, Node, Temp_Parents(1 .. Parent_Count));
 
                   if Current_Score > Best_Score then
                      Best_Score := Current_Score;
-                     Result.Parents(Node) := Current_Parents;
-                  else
-                     Parent_Sets.Delete_Last(Current_Parents);
+                     -- Update parents for this node
+                     Result.Parents(Node)(1 .. Parent_Count) := Temp_Parents(1 .. Parent_Count);
                   end if;
                end;
             end loop;
@@ -74,13 +74,13 @@ package body Bayesian_Network_Learning is
    end K2_Algorithm;
 
    -- Topological sort (simplified for DAG)
-   procedure Topological_Sort (G : Graph; Ordering : out Parent_Sets.Vector) is
+   procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering) is
       Visited : array (Node_Id) of Boolean := (others => False);
    begin
-      Parent_Sets.Clear(Ordering);
+      Ordering := (1 .. Node_Id'Last => 1); -- Initialize with default values
       for I in 1 .. G.Node_Count loop
          if not Visited(Node_Id(I)) then
-            Ordering.Append(Node_Id(I));
+            Ordering(I) := Node_Id(I);
             Visited(Node_Id(I)) := True;
          end if;
       end loop;

@@ -1,10 +1,8 @@
 -- bayesian_network_learning.ads
--- Version 0.07
+-- Version 0.08
 -- Specification of Bayesian Network Structure Learning (CB Algorithm from Paper)
 
 pragma SPARK_Mode;
-
-with Ada.Containers.Vectors;
 
 package Bayesian_Network_Learning is
 
@@ -31,20 +29,22 @@ package Bayesian_Network_Learning is
       Weight : Float;
    end record;
 
-   -- Parent set for a node (dynamic array)
-   package Parent_Sets is new Ada.Containers.Vectors(Positive, Node_Id);
-   subtype Parent_Set is Parent_Sets.Vector;
+   -- Parent set for a node (static array for SPARK compatibility)
+   type Parent_Set is array (Positive range <>) of Node_Id;
 
    -- Graph type
    type Graph is record
       Node_Count : Node_Count_Type := 0;
       Edge_Count : Edge_Count_Type := 0;
-      Parents : array (Node_Id) of Parent_Set;
+      Parents : array (Node_Id) of Parent_Set(1 .. Node_Id'Last);
    end record
      with Relaxed_Initialization;
 
    -- Database type: array of cases, each case is a Value_Array
-   type Database is array (Positive range <>) of Value_Array;
+   type Database is array (Positive range <>, Positive range <>) of Value;
+
+   -- Node ordering type (static array for SPARK compatibility)
+   type Node_Ordering is array (Positive range <>) of Node_Id;
 
    -- CI test result
    function CI_Test (Data : Database; X, Y : Node_Id; Conditioning_Set : Parent_Set) return Boolean
@@ -55,18 +55,18 @@ package Bayesian_Network_Learning is
      with Pre => Data'Length > 0 and Node <= Node_Id'Last;
 
    -- Phase I: Generate node ordering using CI tests (simplified for SPARK)
-   procedure Generate_Ordering (Data : Database; Ordering : out Parent_Sets.Vector)
+   procedure Generate_Ordering (Data : Database; Ordering : out Node_Ordering)
      with Pre => Data'Length > 0,
-          Post => Ordering.Length <= Node_Id'Last;
+          Post => Ordering'Length <= Node_Id'Last;
 
    -- Phase II: K2 algorithm to construct DAG from ordering
-   procedure K2_Algorithm (Data : Database; Ordering : Parent_Sets.Vector; Result : out Graph)
-     with Pre => Data'Length > 0 and Ordering.Length > 0,
+   procedure K2_Algorithm (Data : Database; Ordering : Node_Ordering; Result : out Graph)
+     with Pre => Data'Length > 0 and Ordering'Length > 0,
           Post => Result.Node_Count <= Node_Count_Type(Node_Id'Last);
 
    -- Topological sort for DAG
-   procedure Topological_Sort (G : Graph; Ordering : out Parent_Sets.Vector)
+   procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering)
      with Pre => True,
-          Post => Ordering.Length = G.Node_Count;
+          Post => Ordering'Length = G.Node_Count;
 
 end Bayesian_Network_Learning;
