@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.08
+-- Version 0.09
 -- Specification of Bayesian Network Structure Learning (CB Algorithm from Paper)
 
 pragma SPARK_Mode;
@@ -32,11 +32,11 @@ package Bayesian_Network_Learning is
    -- Parent set for a node (static array for SPARK compatibility)
    type Parent_Set is array (Positive range <>) of Node_Id;
 
-   -- Graph type
+   -- Graph type with parents as 2D array (Node_Id x Parent index)
    type Graph is record
       Node_Count : Node_Count_Type := 0;
       Edge_Count : Edge_Count_Type := 0;
-      Parents : array (Node_Id) of Parent_Set(1 .. Node_Id'Last);
+      Parents : array (Node_Id, Positive range 1 .. Node_Id'Last) of Node_Id;
    end record
      with Relaxed_Initialization;
 
