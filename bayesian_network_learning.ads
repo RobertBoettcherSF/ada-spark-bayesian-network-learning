@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.24
+-- Version 0.25
 -- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -72,6 +72,10 @@ package Bayesian_Network_Learning is
                      Parent_Count : Parent_Count_Type) return Float
      with Pre => Data'Length > 0 and Node <= Max_Nodes and Parent_Count <= Max_Parents;
 
+   -- Helper: Check if adding edge X->Y creates a cycle (SPARK-compatible)
+   function Creates_Cycle (G : Graph; X, Y : Node_Id) return Boolean
+     with Pre => G.Directed_Edges'Initialized and X <= Max_Nodes and Y <= Max_Nodes;
+
    -- Factorial helper (for g-metric) with safe bounds
    function Factorial (N : Integer) return Float
      with Pre => N >= 0 and N <= Max_Factorial_Input,
@@ -90,7 +94,7 @@ package Bayesian_Network_Learning is
 
    -- Topological sort for DAG
    procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering)
-     with Pre => G.Node_Count <= Max_Nodes,
+     with Pre => G.Node_Count <= Max_Nodes and G.Node_Count >= 0,
           Post => Ordering'Length = G.Node_Count;
 
    -- Main CB algorithm (combines Phase I and II iteratively)
