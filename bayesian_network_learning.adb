@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.25
+-- Version 0.26
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -11,7 +11,9 @@ package body Bayesian_Network_Learning is
       Visited : Node_Boolean_Array_Type := (others => False);
       Stack   : Node_Boolean_Array_Type := (others => False);
 
-      procedure DFS (Current : Node_Id; S : in out Node_Boolean_Array_Type; F : out Boolean) is
+      procedure DFS (Current : Node_Id; S : in out Node_Boolean_Array_Type; F : out Boolean)
+        with Always_Terminates
+      is
       begin
          F := False;  -- Initialize OUT parameter
          if Current = X then
@@ -32,8 +34,7 @@ package body Bayesian_Network_Learning is
             end if;
          end loop;
          S(Current) := False;
-      end DFS
-        with Always_Terminates;
+      end DFS;
 
    begin
       if not G.Directed_Edges(X, Y) then
