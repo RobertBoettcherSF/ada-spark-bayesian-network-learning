@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.04
+-- Version 0.05
 -- Specification of Bayesian Network Structure Learning package
 
 pragma SPARK_Mode;
@@ -24,13 +24,13 @@ package Bayesian_Network_Learning is
       Weight : Float;
    end record;
 
-   -- Define named array types for SPARK compatibility
+   -- Define named array types for SPARK compatibility (using Positive for bounds)
    type Node_Array is array (Positive range <>) of Node_Id;
    type Edge_Array is array (Positive range <>) of Edge;
 
    type Graph is record
-      Nodes : Node_Array(1 .. Node_Id'Last);
-      Edges : Edge_Array(1 .. Edge_Id'Last);
+      Nodes : Node_Array(1 .. Integer(Node_Id'Last));
+      Edges : Edge_Array(1 .. Integer(Edge_Id'Last));
       Node_Count : Node_Count_Type := 0;
       Edge_Count : Edge_Count_Type := 0;
    end record;
@@ -45,6 +45,7 @@ package Bayesian_Network_Learning is
    -- Subprogram to apply K2 algorithm to construct DAG from node ordering
    procedure K2_Algorithm (Data : Data_Array; Ordering : Node_Array; Result : out Graph)
      with Pre => Data'Length > 0 and Ordering'Length > 0,
-          Post => Result.Node_Count <= Node_Id'Last and Result.Edge_Count <= Edge_Id'Last;
+          Post => Result.Node_Count <= Node_Count_Type(Node_Id'Last) and
+                 Result.Edge_Count <= Edge_Count_Type(Edge_Id'Last);
 
 end Bayesian_Network_Learning;
