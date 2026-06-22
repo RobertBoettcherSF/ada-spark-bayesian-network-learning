@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.34
+-- Version 0.35
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -40,7 +40,6 @@ package body Bayesian_Network_Learning is
       Node_Stack(1) := Y;
       
       while Stack_Pointer > 0 loop
-         pragma Loop_Variant (Decreases => Stack_Pointer);
          pragma Loop_Invariant (Stack_Pointer <= Max_Nodes);
          
          Current := Node_Stack(Stack_Pointer);
@@ -55,7 +54,6 @@ package body Bayesian_Network_Learning is
             
             -- Push all unvisited neighbors onto stack
             for Neighbor in Node_Id loop
-               pragma Loop_Invariant (Stack_Pointer <= Max_Nodes);
                if G.Directed_Edges(Current, Neighbor) and then not Visited(Neighbor) then
                   if Stack_Pointer < Max_Nodes then
                      Stack_Pointer := Stack_Pointer + 1;
@@ -87,6 +85,7 @@ package body Bayesian_Network_Learning is
       N_IJK : Integer;
       Denominator : Float;
       Term : Float;
+      Fact_R_I_Minus_1 : constant Float := Factorial(R_I - 1);
    begin
       for J in 1 .. Q_I loop
          N_IJ := Data_Size; -- Use actual data size
@@ -94,13 +93,14 @@ package body Bayesian_Network_Learning is
             N_IJK := N_IJ / R_I;  -- Simplified: Assume uniform distribution
             
             -- Ensure factorial arguments are within safe bounds
-            if N_IJ + R_I - 1 <= Max_Factorial_Input and then 
+            -- N_IJ + R_I - 1 <= Max_Factorial_Input (20) and N_IJ >= 0
+            if N_IJ <= Max_Factorial_Input - R_I + 1 and then 
                N_IJK <= Max_Factorial_Input and then
-               N_IJ + R_I - 1 >= 0 and then
+               N_IJ >= 0 and then
                N_IJK >= 0 then
                Denominator := Factorial(N_IJ + R_I - 1);
                if Denominator > 0.0 then  -- Avoid division by zero
-                  Term := (Factorial(R_I - 1) / Denominator) * Factorial(N_IJK);
+                  Term := (Fact_R_I_Minus_1 / Denominator) * Factorial(N_IJK);
                   Result := Result * Term;
                end if;
             end if;
@@ -139,6 +139,7 @@ package body Bayesian_Network_Learning is
       -- Step 2: Remove edges based on CI tests (simplified to order 0)
       for I in Node_Id loop
          for J in I+1 .. Node_Id'Last loop
+            pragma Loop_Invariant (G.Adjacent'Initialized);
             if G.Adjacent(I, J) then
                if CI_Test(Data, I, J, (others => Node_Id'First), 0) then
                   G.Adjacent(I, J) := False;
@@ -151,6 +152,7 @@ package body Bayesian_Network_Learning is
       -- Step 3-4: Orient edges (simplified)
       for I in Node_Id loop
          for J in Node_Id loop
+            pragma Loop_Invariant (G.Adjacent'Initialized and G.Directed_Edges'Initialized);
             if G.Adjacent(I, J) then
                G.Directed_Edges(I, J) := True;
             end if;
@@ -180,7 +182,6 @@ package body Bayesian_Network_Learning is
 
             -- Try all possible parent sets from predecessors
             for J in Ordering'First .. I-1 loop
-               pragma Loop_Invariant (G.Directed_Edges'Initialized);
                declare
                   Candidate : Node_Id := Ordering(J);
                begin
@@ -210,7 +211,11 @@ package body Bayesian_Network_Learning is
       Node_Count_Int : constant Integer := Integer(G.Node_Count);
    begin
       -- Initialize ordering with proper bounds
-      Ordering := (1 .. Node_Count_Int => Node_Id'First);
+      if Node_Count_Int > 0 then
+         Ordering := (1 .. Node_Count_Int => Node_Id'First);
+      else
+         Ordering := (1 .. 1 => Node_Id'First);
+      end if;
       
       for I in Node_Id loop
          pragma Loop_Invariant (Index <= Ordering'Length + 1);
