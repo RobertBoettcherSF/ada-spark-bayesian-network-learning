@@ -18,7 +18,7 @@ package body Bayesian_Network_Learning is
       pragma Unreferenced (Data);
    begin
       -- Ensure Ordering'Length is within Node_Count_Type range
-      if Ordering'Length <= Node_Count_Type'Last then
+      if Ordering'Length in Node_Count_Type then
          Result.Node_Count := Ordering'Length;
       else
          Result.Node_Count := Node_Count_Type'Last;
