@@ -1,5 +1,5 @@
 -- bayesian_network_learning.gpr
--- Version 0.07
+-- Version 0.15
 -- GNAT Project file for Bayesian Network Structure Learning
 
 project Bayesian_Network_Learning is
