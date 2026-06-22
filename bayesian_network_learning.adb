@@ -17,7 +17,12 @@ package body Bayesian_Network_Learning is
    procedure K2_Algorithm (Data : Data_Array; Ordering : Node_Array; Result : out Graph) is
       pragma Unreferenced (Data);
    begin
-      Result.Node_Count := Node_Count_Type(Ordering'Length);
+      -- Ensure Ordering'Length is within Node_Count_Type range
+      if Ordering'Length <= Node_Count_Type'Last then
+         Result.Node_Count := Ordering'Length;
+      else
+         Result.Node_Count := Node_Count_Type'Last;
+      end if;
       Result.Edge_Count := 0;
    end K2_Algorithm;
 

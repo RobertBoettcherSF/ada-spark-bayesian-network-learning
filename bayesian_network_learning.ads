@@ -33,7 +33,8 @@ package Bayesian_Network_Learning is
       Edges : Edge_Array(1 .. Integer(Edge_Id'Last));
       Node_Count : Node_Count_Type := 0;
       Edge_Count : Edge_Count_Type := 0;
-   end record;
+   end record
+     with Relaxed_Initialization;
 
    -- Placeholder for data type
    type Data_Array is array (Positive range <>) of Float;
