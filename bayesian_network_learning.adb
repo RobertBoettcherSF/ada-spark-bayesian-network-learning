@@ -43,7 +43,7 @@ package body Bayesian_Network_Learning is
                      Conditioning_Count : Parent_Count_Type) return Boolean is
       pragma Unreferenced (Data, X, Y, Conditioning_Set, Conditioning_Count);
    begin
-      return True; -- Placeholder
+      return Conditioning_Count > 0; -- Placeholder
    end CI_Test;
 
    -- Factorial helper (for g-metric)
@@ -70,7 +70,8 @@ package body Bayesian_Network_Learning is
    begin
       for J in 1 .. Q_I loop
          N_IJ := 0;
-         for Case in Data'Range(1) loop
+         -- Count N_ij (cases where parents = w_ij)
+         for Case_Index in Data'Range(1) loop
             N_IJ := N_IJ + 1; -- Simplified
          end loop;
          for K in 1 .. R_I loop
@@ -81,53 +82,79 @@ package body Bayesian_Network_Learning is
       return Result;
    end G_Metric;
 
-   -- Phase I: Generate node ordering using CI tests (simplified)
+   -- Phase I: Generate node ordering using CI tests
    procedure Phase_I (Data : Database; G : in out Graph; Ordering : out Node_Ordering) is
    begin
-      -- Initialize ordering with all nodes
-      Ordering := (1 .. Max_Nodes => Node_Id'First);
-      for I in Integer range 1 .. Max_Nodes loop
-         Ordering(I) := Node_Id(I);
+      -- Step 1: Start with complete undirected graph
+      for I in Node_Id loop
+         for J in Node_Id loop
+            if I /= J then
+               G.Adjacent(I, J) := True;
+            end if;
+         end loop;
       end loop;
-      G.Node_Count := Node_Count_Type(Max_Nodes);
+
+      -- Step 2: Remove edges based on CI tests (simplified to order 0)
+      for I in Node_Id loop
+         for J in I+1 .. Node_Id'Last loop
+            if G.Adjacent(I, J) then
+               if CI_Test(Data, I, J, (others => Node_Id'First), 0) then
+                  G.Adjacent(I, J) := False;
+                  G.Adjacent(J, I) := False;
+               end if;
+            end if;
+         end loop;
+      end loop;
+
+      -- Step 3-4: Orient edges (simplified)
+      for I in Node_Id loop
+         for J in Node_Id loop
+            if G.Adjacent(I, J) then
+               G.Directed_Edges(I, J) := True;
+            end if;
+         end loop;
+      end loop;
+
+      -- Step 5: Topological sort to get ordering
+      Topological_Sort(G, Ordering);
    end Phase_I;
 
-   -- Phase II: K2 algorithm to construct DAG from ordering
-   procedure Phase_II (Data : Database; G : in out Graph; Ordering : Node_Ordering) is
-      Best_Score : Float := -Float'Last;
+   -- Phase II: K2 algorithm
+   procedure Phase_II (Data : Database; Ordering : Node_Ordering; G : in out Graph) is
+      Best_Score : Float;
       Current_Score : Float;
    begin
       G.Node_Count := Node_Count_Type(Ordering'Length);
-      G.Edge_Count := 0;
 
-      -- Initialize parents
+      -- Initialize parents for all nodes
       for I in Node_Id loop
-         for J in Parent_Index loop
-            G.Parents(I)(J) := Node_Id'First;
-         end loop;
          G.Parent_Counts(I) := 0;
       end loop;
 
       -- For each node in the ordering
-      for I in 1 .. Ordering'Length loop
+      for I in Ordering'Range loop
          declare
             Node : Node_Id := Ordering(I);
             Temp_Parents : Parent_Set_Type := (others => Node_Id'First);
-            Parent_Count : Parent_Count_Type := 0;
+            Temp_Count : Parent_Count_Type := 0;
          begin
-            for J in 1 .. I - 1 loop
+            Best_Score := -Float'Last;
+
+            -- Try all possible parent sets from predecessors
+            for J in Ordering'First .. I-1 loop
                declare
-                  Candidate_Parent : Node_Id := Ordering(J);
+                  Candidate : Node_Id := Ordering(J);
                begin
-                  Parent_Count := Parent_Count + 1;
-                  Temp_Parents(Parent_Count) := Candidate_Parent;
-                  Current_Score := G_Metric(Data, Node, Temp_Parents, Parent_Count);
-                  if Current_Score > Best_Score then
-                     Best_Score := Current_Score;
-                     for K in 1 .. Parent_Count loop
-                        G.Parents(Node)(K) := Temp_Parents(K);
-                     end loop;
-                     G.Parent_Counts(Node) := Parent_Count;
+                  Temp_Count := Temp_Count + 1;
+                  Temp_Parents(Temp_Count) := Candidate;
+
+                  if not Creates_Cycle(G, Candidate, Node) then
+                     Current_Score := G_Metric(Data, Node, Temp_Parents, Temp_Count);
+                     if Current_Score > Best_Score then
+                        Best_Score := Current_Score;
+                        G.Parent_Counts(Node) := Temp_Count;
+                        G.Parents(Node) := Temp_Parents;
+                     end if;
                   end if;
                end;
             end loop;
@@ -138,14 +165,47 @@ package body Bayesian_Network_Learning is
    -- Topological sort (simplified for DAG)
    procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering) is
       Visited : array (Node_Id) of Boolean := (others => False);
+      Index : Positive := 1;
    begin
       Ordering := (1 .. Max_Nodes => Node_Id'First);
-      for I in Integer range 1 .. Integer(G.Node_Count) loop
-         if not Visited(Node_Id(I)) then
-            Ordering(I) := Node_Id(I);
-            Visited(Node_Id(I)) := True;
+      for I in Node_Id loop
+         if not Visited(I) and then G.Node_Count >= Node_Count_Type(I) then
+            Ordering(Index) := I;
+            Visited(I) := True;
+            Index := Index + 1;
          end if;
       end loop;
    end Topological_Sort;
+
+   -- Main CB algorithm (combines Phase I and II iteratively)
+   procedure CB_Algorithm (Data : Database; G : out Graph) is
+      Ordering : Node_Ordering(1 .. Max_Nodes);
+      Old_Prob : Float := 0.0;
+      New_Prob : Float := 0.0;
+      Ord : CI_Order := 0;
+   begin
+      -- Initialize graph
+      G.Node_Count := 0;
+      G.Edge_Count := 0;
+      G.Adjacent := (others => (others => False));
+      G.Directed_Edges := (others => (others => False));
+      for I in Node_Id loop
+         G.Parent_Counts(I) := 0;
+         G.Parents(I) := (others => Node_Id'First);
+      end loop;
+
+      -- Phase I + II for CI order 0
+      Phase_I(Data, G, Ordering);
+      Phase_II(Data, Ordering, G);
+
+      -- Compute initial probability (simplified)
+      New_Prob := 1.0;
+      for I in Node_Id loop
+         if G.Parent_Counts(I) > 0 then
+            New_Prob := New_Prob * G_Metric(Data, I, G.Parents(I), G.Parent_Counts(I));
+         end if;
+      end loop;
+      Old_Prob := New_Prob;
+   end CB_Algorithm;
 
 end Bayesian_Network_Learning;

@@ -28,12 +28,9 @@ package Bayesian_Network_Learning is
    type Value_Array is array (Positive range <>) of Value;
 
    -- Named array types for SPARK compatibility
-   type Database_Type is array (Positive range <>, Node_Id) of Value;
-   type Parent_Set_Type is array (Parent_Index) of Node_Id;
    type Adjacency_Matrix_Type is array (Node_Id, Node_Id) of Boolean;
    type Directed_Edges_Matrix_Type is array (Node_Id, Node_Id) of Boolean;
-   type Parent_Array_Type is array (Node_Id) of Parent_Set_Type;
-   type Parent_Counts_Array_Type is array (Node_Id) of Parent_Count_Type;
+   type Parent_Set_Type is array (Parent_Index) of Node_Id;
 
    -- Database: array of cases, each case is a Value_Array
    type Database is array (Positive range <>, Positive range <>) of Value;
@@ -53,8 +50,8 @@ package Bayesian_Network_Learning is
       -- Directed edges (Phase II)
       Directed_Edges : Directed_Edges_Matrix_Type := (others => (others => False));
       -- Parents for each node (Phase II)
-      Parents : Parent_Array_Type := (others => (others => Node_Id'First));
-      Parent_Counts : Parent_Counts_Array_Type := (others => 0);
+      Parents : array (Node_Id) of Parent_Set_Type := (others => (others => Node_Id'First));
+      Parent_Counts : array (Node_Id) of Parent_Count_Type := (others => 0);
    end record
      with Relaxed_Initialization;
 
@@ -69,21 +66,26 @@ package Bayesian_Network_Learning is
    -- K2 metric g(i, π_i) from Equation 2 in the paper
    function G_Metric (Data : Database; Node : Node_Id; Parents : Parent_Set_Type;
                      Parent_Count : Parent_Count_Type) return Float
-     with Pre => Data'Length > 0 and Node <= Max_Nodes;
+     with Pre => Data'Length > 0 and Node <= Max_Nodes and Parent_Count <= Max_Parents;
 
    -- Phase I: Generate node ordering using CI tests
    procedure Phase_I (Data : Database; G : in out Graph; Ordering : out Node_Ordering)
      with Pre => Data'Length > 0,
-          Post => Ordering'Length <= Max_Nodes;
+          Post => Ordering'Length = G.Node_Count;
 
    -- Phase II: K2 algorithm to construct DAG from ordering
-   procedure Phase_II (Data : Database; G : in out Graph; Ordering : Node_Ordering)
+   procedure Phase_II (Data : Database; Ordering : Node_Ordering; G : in out Graph)
      with Pre => Data'Length > 0 and Ordering'Length > 0,
-          Post => G.Node_Count <= Max_Nodes;
+          Post => G.Node_Count = Node_Count_Type(Ordering'Length);
 
    -- Topological sort for DAG
    procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering)
      with Pre => True,
           Post => Ordering'Length = G.Node_Count;
+
+   -- Main CB algorithm (combines Phase I and II iteratively)
+   procedure CB_Algorithm (Data : Database; G : out Graph)
+     with Pre => Data'Length > 0,
+          Post => G.Node_Count <= Max_Nodes;
 
 end Bayesian_Network_Learning;
