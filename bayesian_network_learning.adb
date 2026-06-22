@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.16
+-- Version 0.17
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -146,7 +146,7 @@ package body Bayesian_Network_Learning is
                   Candidate : Node_Id := Ordering(J);
                begin
                   Temp_Count := Temp_Count + 1;
-                  Temp_Parents(Temp_Count) := Candidate;
+                  Temp_Parents(Parent_Index(Temp_Count)) := Candidate;
 
                   if not Creates_Cycle(G, Candidate, Node) then
                      Current_Score := G_Metric(Data, Node, Temp_Parents, Temp_Count);
