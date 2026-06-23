@@ -56,8 +56,8 @@ begin
 
    -- Print adjacency matrix
    Put_Line("Adjacency Matrix (undirected edges from Phase I):");
-   for I in 1 .. Integer(Learned_Graph.Node_Count) loop
-      for J in 1 .. Integer(Learned_Graph.Node_Count) loop
+   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
+      for J in Node_Id range 1 .. Learned_Graph.Node_Count loop
          Put(" " & Boolean'Image(Learned_Graph.Adjacent(I, J)));
       end loop;
       New_Line;
@@ -66,8 +66,8 @@ begin
 
    -- Print directed edges matrix
    Put_Line("Directed Edges Matrix (from Phase II):");
-   for I in 1 .. Integer(Learned_Graph.Node_Count) loop
-      for J in 1 .. Integer(Learned_Graph.Node_Count) loop
+   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
+      for J in Node_Id range 1 .. Learned_Graph.Node_Count loop
          Put(" " & Boolean'Image(Learned_Graph.Directed_Edges(I, J)));
       end loop;
       New_Line;
@@ -76,9 +76,9 @@ begin
 
    -- Print parent relationships
    Put_Line("Parent Relationships:");
-   for I in 1 .. Integer(Learned_Graph.Node_Count) loop
-      Put("Node " & Integer'Image(I) & " parents: ");
-      for J in 1 .. Learned_Graph.Parent_Counts(I) loop
+   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
+      Put("Node " & Node_Id'Image(I) & " parents: ");
+      for J in Parent_Index range 1 .. Learned_Graph.Parent_Counts(I) loop
          Put(Node_Id'Image(Learned_Graph.Parents(I, J)) & " ");
       end loop;
       New_Line;
@@ -89,7 +89,7 @@ begin
    Put_Line("Testing Topological Sort...");
    Topological_Sort(Learned_Graph, Ordering);
    Put("Topological Order: ");
-   for I in 1 .. Integer(Learned_Graph.Node_Count) loop
+   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
       Put(Node_Id'Image(Ordering(I)) & " ");
    end loop;
    New_Line;
@@ -97,14 +97,14 @@ begin
 
    -- Test cycle detection
    Put_Line("Testing Cycle Detection...");
-   for I in 1 .. Integer(Learned_Graph.Node_Count) loop
-      for J in 1 .. Integer(Learned_Graph.Node_Count) loop
+   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
+      for J in Node_Id range 1 .. Learned_Graph.Node_Count loop
          if I /= J then
             declare
-               Has_Cycle : Boolean := Creates_Cycle(Learned_Graph, Node_Id(I), Node_Id(J));
+               Has_Cycle : Boolean := Creates_Cycle(Learned_Graph, I, J);
             begin
                if Has_Cycle then
-                  Put_Line("Adding edge " & Integer'Image(I) & " -> " & Integer'Image(J) & " would create a cycle");
+                  Put_Line("Adding edge " & Node_Id'Image(I) & " -> " & Node_Id'Image(J) & " would create a cycle");
                end if;
             end;
          end if;
