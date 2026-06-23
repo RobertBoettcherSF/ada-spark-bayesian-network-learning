@@ -1,4 +1,5 @@
 -- test_cb_algorithm.adb
+-- Version 0.01
 -- Test program for the CB Algorithm (CI Tests + K2)
 -- This demonstrates the Bayesian Network structure learning
 
@@ -77,7 +78,7 @@ begin
    Put_Line("Parent Relationships:");
    for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
       Put("Node " & Node_Id'Image(I) & " parents: ");
-      for J in Parent_Index range 1 .. Learned_Graph.Parent_Counts(I) loop
+      for J in Parent_Index range 1 .. Parent_Index(Learned_Graph.Parent_Counts(I)) loop
          Put(Node_Id'Image(Learned_Graph.Parents(I, J)) & " ");
       end loop;
       New_Line;
@@ -88,7 +89,7 @@ begin
    Put_Line("Testing Topological Sort...");
    Topological_Sort(Learned_Graph, Ordering);
    Put("Topological Order: ");
-   for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
+   for I in Positive range 1 .. Integer(Learned_Graph.Node_Count) loop
       Put(Node_Id'Image(Ordering(I)) & " ");
    end loop;
    New_Line;
