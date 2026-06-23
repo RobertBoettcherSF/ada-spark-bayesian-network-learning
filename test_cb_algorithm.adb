@@ -1,5 +1,5 @@
 -- test_cb_algorithm.adb
--- Version 0.02
+-- Version 0.03
 -- Test program for the CB Algorithm (CI Tests + K2)
 -- This demonstrates the Bayesian Network structure learning
 
@@ -78,13 +78,15 @@ begin
    Put_Line("Parent Relationships:");
    for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
       Put("Node " & Node_Id'Image(I) & " parents: ");
-      declare
-         Node_Parents : Parent_Set_Type := Learned_Graph.Parents(I);
-      begin
-         for J in Parent_Index range 1 .. Parent_Index(Learned_Graph.Parent_Counts(I)) loop
-            Put(Node_Id'Image(Node_Parents(J)) & " ");
-         end loop;
-      end;
+      if Learned_Graph.Parent_Counts(I) > 0 then
+         declare
+            Node_Parents : Parent_Set_Type := Learned_Graph.Parents(I);
+         begin
+            for J in Parent_Index range 1 .. Parent_Index(Learned_Graph.Parent_Counts(I)) loop
+               Put(Node_Id'Image(Node_Parents(J)) & " ");
+            end loop;
+         end;
+      end if;
       New_Line;
    end loop;
    New_Line;
