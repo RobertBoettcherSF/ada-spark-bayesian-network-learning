@@ -6,31 +6,30 @@ with Bayesian_Network_Learning; use Bayesian_Network_Learning;
 with Ada.Text_IO; use Ada.Text_IO;
 
 procedure Test_CB_Algorithm is
-   -- Test database with 4 nodes and 10 samples
-   -- Nodes: 1, 2, 3, 4
-   -- Simple pattern: Node 1 causes Node 2, Node 3 causes Node 4
+   -- Test database with 10 samples and 4 nodes
+   -- Each row is a sample, each column is a node value
    Test_Data : Database(1 .. 10, 1 .. 4) :=
      (
-      -- Sample 1: 1=F, 2=F, 3=F, 4=F
-      (1 => (1 => False, 2 => False, 3 => False, 4 => False)),
-      -- Sample 2: 1=T, 2=T, 3=F, 4=F
-      (2 => (1 => True,  2 => True,  3 => False, 4 => False)),
-      -- Sample 3: 1=F, 2=F, 3=T, 4=T
-      (3 => (1 => False, 2 => False, 3 => True,  4 => True)),
-      -- Sample 4: 1=T, 2=T, 3=T, 4=T
-      (4 => (1 => True,  2 => True,  3 => True,  4 => True)),
-      -- Sample 5: 1=F, 2=F, 3=F, 4=F
-      (5 => (1 => False, 2 => False, 3 => False, 4 => False)),
-      -- Sample 6: 1=T, 2=T, 3=F, 4=F
-      (6 => (1 => True,  2 => True,  3 => False, 4 => False)),
-      -- Sample 7: 1=F, 2=F, 3=T, 4=T
-      (7 => (1 => False, 2 => False, 3 => True,  4 => True)),
-      -- Sample 8: 1=T, 2=T, 3=T, 4=T
-      (8 => (1 => True,  2 => True,  3 => True,  4 => True)),
-      -- Sample 9: 1=F, 2=F, 3=F, 4=F
-      (9 => (1 => False, 2 => False, 3 => False, 4 => False)),
-      -- Sample 10: 1=T, 2=T, 3=T, 4=T
-      (10 => (1 => True,  2 => True,  3 => True,  4 => True))
+      -- Sample 1: Node 1=F, Node 2=F, Node 3=F, Node 4=F
+      (False, False, False, False),
+      -- Sample 2: Node 1=T, Node 2=T, Node 3=F, Node 4=F
+      (True,  True,  False, False),
+      -- Sample 3: Node 1=F, Node 2=F, Node 3=T, Node 4=T
+      (False, False, True,  True),
+      -- Sample 4: Node 1=T, Node 2=T, Node 3=T, Node 4=T
+      (True,  True,  True,  True),
+      -- Sample 5: Node 1=F, Node 2=F, Node 3=F, Node 4=F
+      (False, False, False, False),
+      -- Sample 6: Node 1=T, Node 2=T, Node 3=F, Node 4=F
+      (True,  True,  False, False),
+      -- Sample 7: Node 1=F, Node 2=F, Node 3=T, Node 4=T
+      (False, False, True,  True),
+      -- Sample 8: Node 1=T, Node 2=T, Node 3=T, Node 4=T
+      (True,  True,  True,  True),
+      -- Sample 9: Node 1=F, Node 2=F, Node 3=F, Node 4=F
+      (False, False, False, False),
+      -- Sample 10: Node 1=T, Node 2=T, Node 3=T, Node 4=T
+      (True,  True,  True,  True)
      );
 
    Learned_Graph : Graph;
@@ -56,8 +55,8 @@ begin
 
    -- Print adjacency matrix
    Put_Line("Adjacency Matrix (undirected edges from Phase I):");
-   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
-      for J in Node_Id range 1 .. Learned_Graph.Node_Count loop
+   for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
+      for J in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
          Put(" " & Boolean'Image(Learned_Graph.Adjacent(I, J)));
       end loop;
       New_Line;
@@ -66,8 +65,8 @@ begin
 
    -- Print directed edges matrix
    Put_Line("Directed Edges Matrix (from Phase II):");
-   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
-      for J in Node_Id range 1 .. Learned_Graph.Node_Count loop
+   for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
+      for J in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
          Put(" " & Boolean'Image(Learned_Graph.Directed_Edges(I, J)));
       end loop;
       New_Line;
@@ -76,7 +75,7 @@ begin
 
    -- Print parent relationships
    Put_Line("Parent Relationships:");
-   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
+   for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
       Put("Node " & Node_Id'Image(I) & " parents: ");
       for J in Parent_Index range 1 .. Learned_Graph.Parent_Counts(I) loop
          Put(Node_Id'Image(Learned_Graph.Parents(I, J)) & " ");
@@ -89,7 +88,7 @@ begin
    Put_Line("Testing Topological Sort...");
    Topological_Sort(Learned_Graph, Ordering);
    Put("Topological Order: ");
-   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
+   for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
       Put(Node_Id'Image(Ordering(I)) & " ");
    end loop;
    New_Line;
@@ -97,8 +96,8 @@ begin
 
    -- Test cycle detection
    Put_Line("Testing Cycle Detection...");
-   for I in Node_Id range 1 .. Learned_Graph.Node_Count loop
-      for J in Node_Id range 1 .. Learned_Graph.Node_Count loop
+   for I in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
+      for J in Node_Id range 1 .. Node_Id(Learned_Graph.Node_Count) loop
          if I /= J then
             declare
                Has_Cycle : Boolean := Creates_Cycle(Learned_Graph, I, J);
