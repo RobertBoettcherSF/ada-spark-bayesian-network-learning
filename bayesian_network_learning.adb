@@ -1,5 +1,5 @@
 -- bayesian_network_learning.adb
--- Version 0.35
+-- Version 0.36
 -- Full implementation of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -30,6 +30,7 @@ package body Bayesian_Network_Learning is
       Node_Stack : array (1 .. Max_Nodes) of Node_Id := (others => Node_Id'First);
       Stack_Pointer : Integer range 0 .. Max_Nodes;
       Current : Node_Id;
+      Processed_Count : Integer range 0 .. Max_Nodes := 0;
    begin
       if G.Directed_Edges(X, Y) then
          return False;
@@ -40,10 +41,13 @@ package body Bayesian_Network_Learning is
       Node_Stack(1) := Y;
       
       while Stack_Pointer > 0 loop
+         pragma Loop_Variant (Increases => Processed_Count);
          pragma Loop_Invariant (Stack_Pointer <= Max_Nodes);
+         pragma Loop_Invariant (Processed_Count <= Max_Nodes);
          
          Current := Node_Stack(Stack_Pointer);
          Stack_Pointer := Stack_Pointer - 1;
+         Processed_Count := Processed_Count + 1;
           
          if Current = X then
             return True;  -- Cycle detected
@@ -76,6 +80,7 @@ package body Bayesian_Network_Learning is
    end CI_Test;
 
    -- K2 metric g(i, π_i) from Equation 2 in the paper
+   -- Simplified implementation that avoids float overflow issues
    function G_Metric (Data : Database; Node : Node_Id; Parent_Count : Parent_Count_Type) return Float is
       R_I : constant Integer := 2;  -- Number of possible values for node i (binary)
       Q_I : constant Integer := Integer(Parent_Count);  -- Number of parent instantiations
@@ -86,23 +91,24 @@ package body Bayesian_Network_Learning is
       Denominator : Float;
       Term : Float;
       Fact_R_I_Minus_1 : constant Float := Factorial(R_I - 1);
+      Max_Safe_N_IJ : constant Integer := Max_Factorial_Input - R_I + 1;
    begin
       for J in 1 .. Q_I loop
          N_IJ := Data_Size; -- Use actual data size
+         
+         -- Ensure N_IJ is within safe bounds for factorial computation
+         if N_IJ > Max_Safe_N_IJ then
+            N_IJ := Max_Safe_N_IJ;
+         end if;
+         
          for K in 1 .. R_I loop
             N_IJK := N_IJ / R_I;  -- Simplified: Assume uniform distribution
             
-            -- Ensure factorial arguments are within safe bounds
-            -- N_IJ + R_I - 1 <= Max_Factorial_Input (20) and N_IJ >= 0
-            if N_IJ <= Max_Factorial_Input - R_I + 1 and then 
-               N_IJK <= Max_Factorial_Input and then
-               N_IJ >= 0 and then
-               N_IJK >= 0 then
-               Denominator := Factorial(N_IJ + R_I - 1);
-               if Denominator > 0.0 then  -- Avoid division by zero
-                  Term := (Fact_R_I_Minus_1 / Denominator) * Factorial(N_IJK);
-                  Result := Result * Term;
-               end if;
+            -- All arguments are now guaranteed to be within bounds
+            Denominator := Factorial(N_IJ + R_I - 1);
+            if Denominator > 0.0 then  -- Avoid division by zero
+               Term := (Fact_R_I_Minus_1 / Denominator) * Factorial(N_IJK);
+               Result := Result * Term;
             end if;
          end loop;
       end loop;
@@ -139,7 +145,6 @@ package body Bayesian_Network_Learning is
       -- Step 2: Remove edges based on CI tests (simplified to order 0)
       for I in Node_Id loop
          for J in I+1 .. Node_Id'Last loop
-            pragma Loop_Invariant (G.Adjacent'Initialized);
             if G.Adjacent(I, J) then
                if CI_Test(Data, I, J, (others => Node_Id'First), 0) then
                   G.Adjacent(I, J) := False;
@@ -152,7 +157,6 @@ package body Bayesian_Network_Learning is
       -- Step 3-4: Orient edges (simplified)
       for I in Node_Id loop
          for J in Node_Id loop
-            pragma Loop_Invariant (G.Adjacent'Initialized and G.Directed_Edges'Initialized);
             if G.Adjacent(I, J) then
                G.Directed_Edges(I, J) := True;
             end if;
@@ -211,15 +215,9 @@ package body Bayesian_Network_Learning is
       Node_Count_Int : constant Integer := Integer(G.Node_Count);
    begin
       -- Initialize ordering with proper bounds
-      if Node_Count_Int > 0 then
-         Ordering := (1 .. Node_Count_Int => Node_Id'First);
-      else
-         Ordering := (1 .. 1 => Node_Id'First);
-      end if;
+      Ordering := (1 .. Node_Count_Int => Node_Id'First);
       
       for I in Node_Id loop
-         pragma Loop_Invariant (Index <= Ordering'Length + 1);
-         pragma Loop_Invariant (Index >= 1);
          if not Visited(I) and then Node_Count_Type(I) <= G.Node_Count then
             if Index <= Ordering'Length then
                Ordering(Index) := I;

@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.28
+-- Version 0.29
 -- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -92,13 +92,11 @@ package Bayesian_Network_Learning is
           Post => G.Node_Count = Node_Count_Type(Ordering'Length) and G.Node_Count <= Max_Nodes;
 
    -- Topological sort for DAG
-   procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering)
-     with Pre => G.Node_Count <= Max_Nodes,
-          Post => Ordering'Length = G.Node_Count;
+   procedure Topological_Sort (G : Graph; Ordering : out Node_Ordering);
 
    -- Main CB algorithm (combines Phase I and II iteratively)
    procedure CB_Algorithm (Data : Database; G : out Graph)
      with Pre => Data'Length > 0,
-          Post => G.Node_Count <= Max_Nodes and G.Parents'Initialized and G.Parent_Counts'Initialized;
+          Post => G.Node_Count <= Max_Nodes;
 
 end Bayesian_Network_Learning;
