@@ -1,5 +1,5 @@
 -- bayesian_network_learning.ads
--- Version 0.29
+-- Version 0.30
 -- Full specification of CB Algorithm (CI Tests + K2) from Paper
 
 pragma SPARK_Mode;
@@ -56,8 +56,7 @@ package Bayesian_Network_Learning is
       -- Parents for each node (Phase II)
       Parents : Parents_Array_Type := (others => (others => Node_Id'First));
       Parent_Counts : Parent_Counts_Array_Type := (others => 0);
-   end record
-     with Relaxed_Initialization;
+   end record;
 
    -- Node ordering type
    type Node_Ordering is array (Positive range <>) of Node_Id;
@@ -73,7 +72,7 @@ package Bayesian_Network_Learning is
 
    -- Helper: Check if adding edge X->Y creates a cycle (SPARK-compatible)
    function Creates_Cycle (G : Graph; X, Y : Node_Id) return Boolean
-     with Pre => G.Directed_Edges'Initialized and X <= Max_Nodes and Y <= Max_Nodes;
+     with Pre => X <= Max_Nodes and Y <= Max_Nodes;
 
    -- Factorial helper (for g-metric) with safe bounds
    function Factorial (N : Integer) return Float
@@ -82,13 +81,12 @@ package Bayesian_Network_Learning is
 
    -- Phase I: Generate node ordering using CI tests
    procedure Phase_I (Data : Database; G : in out Graph; Ordering : out Node_Ordering)
-     with Pre => Data'Length > 0 and G.Adjacent'Initialized and G.Directed_Edges'Initialized,
+     with Pre => Data'Length > 0,
           Post => Ordering'Length = G.Node_Count and G.Node_Count <= Max_Nodes;
 
    -- Phase II: K2 algorithm to construct DAG from ordering
    procedure Phase_II (Data : Database; Ordering : Node_Ordering; G : in out Graph)
-     with Pre => Data'Length > 0 and Ordering'Length > 0 and Ordering'Length <= Max_Nodes
-          and G.Parents'Initialized and G.Parent_Counts'Initialized,
+     with Pre => Data'Length > 0 and Ordering'Length > 0 and Ordering'Length <= Max_Nodes,
           Post => G.Node_Count = Node_Count_Type(Ordering'Length) and G.Node_Count <= Max_Nodes;
 
    -- Topological sort for DAG
